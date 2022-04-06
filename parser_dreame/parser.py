@@ -106,7 +106,7 @@ class DreameParser:
 
         while not self.crawl_queue.empty():
             url = self.crawl_queue.get()
-            print(f'{url} parsing')
+            print(f'{url} parsing | {self.crawl_queue.qsize()} left')
 
             if '/search/' in url:
                 # If URL is a catalog page then get books URLs without lang badges
