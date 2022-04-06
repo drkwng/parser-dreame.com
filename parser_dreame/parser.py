@@ -1,5 +1,4 @@
 import os
-import logging
 
 from time import sleep
 from random import randint
@@ -10,6 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import NoSuchElementException
 
 from fake_useragent.fake import UserAgent
 
@@ -22,8 +22,8 @@ class DreameParser:
 
         self.pages_cnt_xpath = "//ul[@class='pagination']/li[last()]"
         self.cat_list_xpath = "//li[@class='book clearfix']"
-        self.elem_lang_xpath = "//div[@class='stat']/img[@class='stat-lang pull-right']"
-        self.elem_book_xpath = "//h3[@class='name']/a"
+        self.elem_lang_xpath = ".//div[@class='stat']/img[@class='stat-lang pull-right']"
+        self.elem_book_xpath = ".//h3[@class='name']/a"
         self.author_page_xpath = "//a[@class='author-page']"
         self.author_badge_xpath = "//img[@class='next-top-writer']"
 
@@ -32,7 +32,7 @@ class DreameParser:
         options = Options()
         # options.add_argument('--headless')
         options.add_argument(f"user-agent={self.ua}")
-        options.add_experimental_option("excludeSwitches", ["enable-logging"])
+        # options.add_experimental_option("excludeSwitches", ["enable-logging"])
         options.add_argument("--profile-directory=Default")
         options.add_argument("--user-data-dir=/var/tmp/chrome_user_data")
         self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
@@ -63,8 +63,7 @@ class DreameParser:
             data = self.driver.find_elements(by=By.XPATH, value=xpath_cond)
             return data
 
-        except Exception as err:
-            logging.error('Parser page_extract_data(): ', err, type(err))
+        except NoSuchElementException:
             return None
 
     @staticmethod
@@ -76,8 +75,7 @@ class DreameParser:
             data = element.find_element(by=By.XPATH, value=xpath_cond)
             return data
 
-        except Exception as err:
-            logging.error('Parser elem_extract_data(): ', err, type(err))
+        except NoSuchElementException:
             return None
 
     def get_cat_pages(self, url, pages_cnt):
@@ -114,10 +112,10 @@ class DreameParser:
                 # If URL is a catalog page then get books URLs without lang badges
                 cat_list = self.page_extract_data(url, self.cat_list_xpath)
                 for elem in cat_list:
+                    # Elem not None
                     lang = self.elem_extract_data(elem, self.elem_lang_xpath)
-                    # If no lang badge found
                     if not lang:
-                        book_link = elem.elem_extract_data(elem, self.elem_book_xpath).\
+                        book_link = self.elem_extract_data(elem, self.elem_book_xpath).\
                             get_attribute("href")
                         self.crawl_queue.put(book_link)
 
@@ -126,8 +124,8 @@ class DreameParser:
                 author_link = self.page_extract_data(url, self.author_page_xpath)[0]\
                     .get_attribute("href")
                 next_top = self.page_extract_data(author_link, self.author_badge_xpath)
-                # If is not None
-                if next_top is not None:
+                # If badge found
+                if next_top:
                     yield author_link, url
 
             sleep(randint(2, 5))
